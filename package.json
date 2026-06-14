@@ -1,13 +1,14 @@
 {
-  "name": "aurx-network-backend",
+  "name": "aurx-link-backend",
   "version": "1.0.0",
+  "description": "AurX Link - smart link dictionary backend",
+  "main": "index.js",
   "type": "module",
-  "main": "api/main.js",
   "scripts": {
-    "start": "node api/main.js"
+    "dev": "vercel dev",
+    "start": "node api/search.js"
   },
   "dependencies": {
-    "firebase-admin": "^12.0.0",
-    "google-auth-library": "^9.0.0"
+    "firebase-admin": "^12.0.0"
   }
 }
