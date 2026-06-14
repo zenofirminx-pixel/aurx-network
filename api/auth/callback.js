@@ -1,7 +1,8 @@
-import { serialize } from "cookie";
-
 export default async function handler(req, res) {
   const { code } = req.query;
+
+  // L'URL exacte de ta PWA que tu viens de me donner
+  const PWA_URL = "https://firmin-history.vercel.app"; 
 
   if (!code) {
     return res.status(400).json({
@@ -11,7 +12,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 🔁 1. Exchange code → tokens
+    // 🔁 1. Échange du code contre les tokens Google
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: {
@@ -32,7 +33,7 @@ export default async function handler(req, res) {
       throw new Error(tokens.error || "No access_token");
     }
 
-    // 👤 2. Get Google user info
+    // 👤 2. Récupération des infos de l'utilisateur Google
     const userRes = await fetch(
       "https://www.googleapis.com/oauth2/v2/userinfo",
       {
@@ -44,36 +45,24 @@ export default async function handler(req, res) {
 
     const user = await userRes.json();
 
-    // 🧠 3. Build session (simple, lightweight)
+    // 🧠 3. Construction de l'objet session
     const session = {
       id: user.id,
       name: user.name,
       email: user.email,
-      picture: user.picture
+      picture: user.picture,
+      locale: user.locale || "fr"
     };
 
-    // 🍪 4. Cookie session (safe + simple)
-    res.setHeader(
-      "Set-Cookie",
-      serialize("ax_session", JSON.stringify(session), {
-        httpOnly: true,
-        secure: true,
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 7
-      })
-    );
+    // 🔑 4. Transformation des infos en un Token Base64 pour ton index.html
+    const token = Buffer.from(JSON.stringify(session)).toString('base64');
 
-    // 🚀 5. Redirect vers UI chat
-    return res.redirect(
-      "https://aurx-network.vercel.app/?login=success"
-    );
+    // 🚀 5. Redirection REDOUTABLE et DIRECTE vers ta PWA avec le token !
+    return res.redirect(`${PWA_URL}/?token=${token}`);
 
   } catch (err) {
     console.error("OAuth error:", err);
-
-    return res.redirect(
-      "https://aurx-network.vercel.app/?login=error"
-    );
+    // En cas d'erreur, on renvoie l'utilisateur à la PWA avec un indicateur d'échec
+    return res.redirect(`${PWA_URL}/?login=error`);
   }
 }
