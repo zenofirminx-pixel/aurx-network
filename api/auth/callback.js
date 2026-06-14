@@ -1,34 +1,40 @@
-import { verifyGoogleToken } from "./google.js";
+import client from "./google.js";
 
 export default async function handler(req, res) {
   try {
-    const { token } = req.body || req.query;
+    const code = req.query.code;
 
-    if (!token) {
-      return res.status(400).json({
-        ok: false,
-        error: "Missing token"
-      });
+    if (!code) {
+      return res.status(400).json({ ok: false, error: "Missing code" });
     }
 
-    const user = await verifyGoogleToken(token);
+    // échange code → tokens
+    const { tokens } = await client.getToken(code);
+    client.setCredentials(tokens);
+
+    // récup user Google
+    const ticket = await client.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+
+    const payload = ticket.getPayload();
+
+    const user = {
+      id: payload.sub,
+      name: payload.name,
+      email: payload.email,
+      picture: payload.picture
+    };
 
     const session = Buffer.from(JSON.stringify(user)).toString("base64");
 
-    res.setHeader(
-      "Set-Cookie",
-      `aurx_token=${session}; Path=/; HttpOnly; SameSite=Lax`
+    return res.redirect(
+      `https://aurx-network.vercel.app/?token=${session}`
     );
 
-    return res.status(200).json({
-      ok: true,
-      user
-    });
-
   } catch (err) {
-    return res.status(500).json({
-      ok: false,
-      error: "Callback error"
-    });
+    console.error(err);
+    return res.status(500).json({ ok: false, error: "OAuth failed" });
   }
 }
